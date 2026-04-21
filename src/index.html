@@ -6,8 +6,25 @@
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body { background:#0f172a; color:#f8fafc; font-family:'Inter', system-ui, sans-serif; overflow:hidden; touch-action:manipulation; user-select:none; height:100vh; height:100dvh; display:flex; flex-direction:column; }
   
-  .tabs { display:flex; height:60px; min-height:60px; background:#1e293b; border-bottom:1px solid #334155; padding: 0 12px; z-index:100; }
-  .tab { flex:1; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#94a3b8; font-weight:600; font-size:14px; transition:color 0.15s, border-color 0.15s; border-bottom: 3px solid transparent; }
+  /* Top status bar */
+  .topbar { display:flex; align-items:center; justify-content:space-between; height:48px; min-height:48px; background:#1e293b; padding:0 16px; border-bottom:1px solid #334155; z-index:100; }
+  .topbar-left { display:flex; align-items:center; gap:10px; }
+  .topbar-right { display:flex; align-items:center; gap:10px; }
+  #fs-btn { display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:10px; background:#0f172a; border:1px solid #334155; flex-shrink:0; }
+  /* Connection status */
+  .conn-pill { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#94a3b8; }
+  #status { width:8px; height:8px; border-radius:50%; background:#f87171; box-shadow:0 0 6px #ef4444; flex-shrink:0; }
+  #status.ok { background:#10b981; box-shadow:0 0 6px #10b981; }
+  /* Battery pill */
+  .bat-pill { display:flex; align-items:center; gap:5px; font-size:12px; font-weight:600; color:#94a3b8; }
+  .bat-icon { width:18px; height:10px; border:1.5px solid #64748b; border-radius:3px; position:relative; flex-shrink:0; }
+  .bat-icon::after { content:''; position:absolute; right:-4px; top:50%; transform:translateY(-50%); width:3px; height:5px; background:#64748b; border-radius:0 2px 2px 0; }
+  .bat-fill { position:absolute; left:1px; top:1px; bottom:1px; background:#10b981; border-radius:1px; width:0%; transition:width 0.5s; }
+  .bat-fill.low { background:#f87171; }
+  .charging { color:#fbbf24; font-size:11px; }
+  /* Tabs */
+  .tabs { display:flex; height:52px; min-height:52px; background:#1e293b; padding:0 8px; z-index:100; }
+  .tab { flex:1; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#64748b; font-weight:600; font-size:13px; transition:color 0.15s, border-color 0.15s; border-bottom:3px solid transparent; }
   .tab.a { color:#38bdf8; border-bottom-color:#38bdf8; }
   
   .p { display:none; flex:1; overflow:hidden; }
@@ -35,10 +52,7 @@
   #pad { flex:1; background:#0b1120; border:2px solid #1e293b; border-radius:32px; box-shadow:inset 0 4px 16px rgba(0,0,0,0.6); touch-action:none; }
   .pad-hint { text-align:center; color:#64748b; font-size:12px; margin-top:16px; line-height:1.4; opacity:0.8; }
   
-  #status-wrapper { position:fixed; top:76px; right:20px; display:flex; align-items:center; gap:10px; background:rgba(30, 41, 59, 0.8); backdrop-filter:blur(8px); padding:8px 16px; border-radius:24px; border:1px solid rgba(51, 65, 85, 0.6); z-index:90; font-size:12px; color:#94a3b8; font-weight:600; }
-  #status { width:10px; height:10px; border-radius:50%; background:#f87171; box-shadow: 0 0 8px #ef4444; }
-  #status.ok { background:#10b981; box-shadow: 0 0 8px #10b981; }
-  #fs { position:fixed; top:76px; left:20px; padding:10px; background:rgba(30, 41, 59, 0.8); backdrop-filter:blur(8px); border:1px solid rgba(51, 65, 85, 0.6); border-radius:50%; z-index:90; display:flex; align-items:center; justify-content:center; }
+  /* Legacy overrides removed — layout is now in topbar */
   
   #kb { padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:20px; }
   .mods { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
@@ -50,26 +64,31 @@
   .info { color:#64748b; font-size:11px; text-align:center; line-height:1.6; margin-top:10px; }
   .section-title { font-size:13px; font-weight:700; color:#475569; margin: 24px 20px 8px 20px; text-transform:uppercase; letter-spacing:1.5px; }
 
-  .pulse-pill { display:flex; align-items:center; gap:6px; padding-right:12px; border-right:1px solid rgba(255,255,255,0.1); }
-  .bat-icon { width:14px; height:8px; border:1.5px solid #94a3b8; border-radius:2px; position:relative; }
-  .bat-icon::after { content:''; position:absolute; right:-3px; top:1.5px; width:2px; height:3px; background:#94a3b8; border-radius:0 1px 1px 0; }
-  .bat-fill { height:100%; background:#10b981; width:0%; transition:width 0.5s; }
-  .bat-fill.low { background:#f87171; }
-  .charging { color:#10b981; font-size:10px; margin-left:-2px; }
+  /* bat-icon / bat-fill / charging styles moved to topbar section above */
 </style>
 </head><body>
 
-<div id="status-wrapper">
-  <div class="pulse-pill">
-    <div class="bat-icon"><div id="bat-fill" class="bat-fill"></div></div>
-    <span id="bat-charging" class="charging" style="display:none;">⚡</span>
-    <span id="bat-val">--%</span>
+<!-- Top status bar -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div id="fs-btn" onclick="document.documentElement.requestFullscreen?.()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+    </div>
+    <div class="bat-pill">
+      <div class="bat-icon"><div id="bat-fill" class="bat-fill"></div></div>
+      <span id="bat-charging" class="charging" style="display:none;">⚡</span>
+      <span id="bat-val">--%</span>
+    </div>
   </div>
-  <div id="status"></div><span id="st-text">Connecting</span>
+  <div class="topbar-right">
+    <div class="conn-pill">
+      <div id="status"></div>
+      <span id="st-text">Connecting</span>
+    </div>
+  </div>
 </div>
 
-<div id="fs" onclick="document.documentElement.requestFullscreen?.()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg></div>
-
+<!-- Tabs -->
 <div class="tabs">
   <div class="tab" onclick="sw(0)">CONTROLS</div>
   <div class="tab a" onclick="sw(1)">TRACKPAD</div>
