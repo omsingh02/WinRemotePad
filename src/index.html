@@ -186,7 +186,7 @@ function clr(){
 function sk(vk){s(`key|${vk}`)}
 
 const pad=document.getElementById('pad');
-let lx=0,ly=0,ax=0,ay=0,as=0,mf=0,ts=0,tm_dist=0,ct=null,dr=0,lpt=null,lastTapEnd=0,dcPending=false;
+let lx=0,ly=0,ax=0,ay=0,as=0,mf=0,ts=0,tm=0,ct=null,dr=0,lpt=null;
 
 setInterval(()=>{
   if(ax||ay){s(`mv|${ax.toFixed(1)}|${ay.toFixed(1)}`);ax=ay=0}
@@ -196,60 +196,30 @@ setInterval(()=>{
 function clrLpt(){ if(lpt){clearTimeout(lpt);lpt=null;} }
 
 pad.ontouchstart=e=>{
-  e.preventDefault();
-  const f=e.touches.length;
-  mf=Math.max(mf,f);
+  e.preventDefault(); const f=e.touches.length; mf=Math.max(mf,f);
   lx=e.touches[0].clientX; ly=e.touches[0].clientY;
-  if(f===1){
-    ts=Date.now(); tm_dist=0;
-    if(ct){
-      // Second touchstart while click pending
-      const gap=Date.now()-lastTapEnd;
-      if(gap<350){
-        // Quick second tap = double-click (not a drag)
-        clearTimeout(ct); ct=null; dcPending=true;
-      } else {
-        // Slow second tap = click-drag start
-        clearTimeout(ct); ct=null; s('md|1'); dr=1;
-      }
-    } else {
-      // Long-press right-click (500ms, no movement)
-      lpt=setTimeout(()=>{ if(tm_dist<8&&!dr){ s('rc'); dr=2; } lpt=null; },500);
-    }
-  } else {
-    clrLpt();
-  }
-  rst();
+  if(f===1&&mf===1){
+    if(ct){clearTimeout(ct);ct=null;dr=1;s('md|1')} // Second tap while pending = drag
+    ts=Date.now();tm=0;
+    if(!dr) lpt=setTimeout(()=>{ if(tm<8&&!dr){ s('rc'); dr=2; } lpt=null; },500); // Long-press RC
+  } else { tm=0; clrLpt(); }
 };
-
 pad.ontouchmove=e=>{
   e.preventDefault();
   const cx=e.touches[0].clientX,cy=e.touches[0].clientY,dx=cx-lx,dy=cy-ly;
-  tm_dist+=Math.abs(dx)+Math.abs(dy);
-  if(tm_dist>8) clrLpt(); // Cancel long-press if moved
-  if(dr===1||mf===1){ax+=dx;ay+=dy}
-  else if(mf>=2&&tm_dist>5){as+=dy}
-  lx=cx;ly=cy; rst();
+  tm+=Math.abs(dx)+Math.abs(dy);
+  if(tm>8) clrLpt();
+  if(mf===1){ax+=dx;ay+=dy}else if(mf>=2&&tm>3){as+=dy}
+  lx=cx;ly=cy;
 };
-
 pad.ontouchend=e=>{
-  e.preventDefault();
-  const d=Date.now()-ts;
+  e.preventDefault(); const d=Date.now()-ts;
   clrLpt();
+  if(dr===1){s('mu|1');dr=0;mf=0;return}
+  if(dr===2){dr=0;mf=0;return}
   if(!e.touches.length){
-    if(dr===1){ s('mu|1'); dr=0; mf=0; return; }  // End drag
-    if(dr===2){ dr=0; mf=0; return; }              // Long-press RC already sent
-    if(dcPending){
-      dcPending=false;
-      if(tm_dist<15&&d<300){ s('dc'); lastTapEnd=0; }
-      mf=0; return;
-    }
-    if(mf===1&&tm_dist<15&&d<300){
-      ct=setTimeout(()=>{ s('cl'); ct=null; },120);
-      lastTapEnd=Date.now();
-    } else if(mf>=2&&tm_dist<15&&d<350){
-      s('rc');
-    }
+    if(mf===1&&tm<12&&d<250){ct=setTimeout(()=>{s('cl');ct=null},150)}
+    else if(mf>=2&&tm<15&&d<350){s('rc')}
     mf=0;
   }
 };
