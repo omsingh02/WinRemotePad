@@ -101,13 +101,14 @@ class LinuxInputController(InputController):
         for i in range(26): self.vk_map[65 + i] = getattr(ecodes, f"KEY_{chr(65 + i)}")
         for i in range(10): self.vk_map[48 + i] = getattr(ecodes, f"KEY_{i}")
         self._m = [0,0,0,0]
+        self.sync_mods(0,0,0,0) # Force clear kernel state on start
 
-    def sync_mods(self, ctrl, shift, alt, win):
-        if [ctrl, shift, alt, win] == self._m: return
+    def sync_mods(self, ctrl, shift, alt, win, force=False):
+        if not force and [ctrl, shift, alt, win] == self._m: return
         e = self.ecodes
         pairs = [(e.KEY_LEFTCTRL, ctrl), (e.KEY_LEFTSHIFT, shift), (e.KEY_LEFTALT, alt), (e.KEY_LEFTMETA, win)]
         for i, (k, s) in enumerate(pairs):
-            if s != self._m[i]:
+            if force or s != self._m[i]:
                 self.ui.write(e.EV_KEY, k, 1 if s else 0)
         self.ui.syn()
         self._m = [ctrl, shift, alt, win]
@@ -267,7 +268,9 @@ def handle(conn, addr):
                 conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nCache-Control: no-cache\r\n\r\n" + html)
     except (socket.timeout, ConnectionResetError, BrokenPipeError, OSError): pass
     finally:
-        try: conn.close()
+        try: 
+            ctrl.sync_mods(0,0,0,0, force=True) # Ensure clean state for next user
+            conn.close()
         except: pass
 
 def get_ip():

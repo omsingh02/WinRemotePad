@@ -14,7 +14,7 @@
   .p.a { display:flex; flex-direction:column; }
   
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:20px; overflow-y:auto; }
-  .btn { background:#1e293b; border:1px solid #334155; color:#f8fafc; padding:20px 12px; text-align:center; border-radius:16px; font-weight:500; font-size:14px; display:flex; flex-direction:column; align-items:center; gap:8px; transition:transform 0.1s, background 0.15s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+  .btn { background:#1e293b; border:1px solid #334155; color:#f8fafc; padding:20px 12px; text-align:center; border-radius:16px; font-weight:500; font-size:14px; display:flex; flex-direction:column; align-items:center; gap:8px; transition:transform 0.1s, background 0.15s; }
   .btn:active { background:#334155; transform:scale(0.96); }
   
   .media-wrapper { padding: 0 20px 20px 20px; display:flex; flex-direction:column; gap:12px; overflow-y:auto; }
@@ -44,7 +44,6 @@
   input { width:100%; padding:16px; background:#1e293b; border:1px solid #334155; color:#f8fafc; font-size:16px; border-radius:12px; }
   input:focus { outline:none; border-color:#38bdf8; }
   .info { color:#64748b; font-size:11px; text-align:center; line-height:1.4; }
-  .section-title { font-size:13px; font-weight:600; color:#64748b; margin: 20px 20px 0 20px; text-transform:uppercase; }
 </style>
 </head><body>
 
@@ -64,7 +63,6 @@
     <div class="btn" onclick="c('voldn')">Vol Dn</div>
     <div class="btn" onclick="c('volup')">Vol Up</div>
   </div>
-  <div class="section-title" id="media-title" style="display:none;">Players</div>
   <div class="media-wrapper" id="media-list"></div>
 </div></div>
 
@@ -83,57 +81,56 @@
     <div class="mod" id="win" onclick="tm('win')">SUPER</div>
     <div class="mod-clear" onclick="clr()">Clear Modifiers</div>
   </div>
-  
   <div class="mods">
-    <div class="btn" onclick="sk(9)">TAB</div>
-    <div class="btn" onclick="sk(27)">ESC</div>
-    <div class="btn" onclick="sk(13)">ENT</div>
-    <div class="btn" onclick="sk(8)">BKSP</div>
+    <div class="btn" onclick="sk(9)">TAB</div><div class="btn" onclick="sk(27)">ESC</div><div class="btn" onclick="sk(13)">ENT</div><div class="btn" onclick="sk(8)">BKSP</div>
   </div>
-
   <div class="mods">
-    <div class="btn" onclick="sk(37)">←</div>
-    <div class="btn" onclick="sk(38)">↑</div>
-    <div class="btn" onclick="sk(40)">↓</div>
-    <div class="btn" onclick="sk(39)">→</div>
+    <div class="btn" onclick="sk(37)">←</div><div class="btn" onclick="sk(38)">↑</div><div class="btn" onclick="sk(40)">↓</div><div class="btn" onclick="sk(39)">→</div>
   </div>
-  
-  <input id="inp" type="text" placeholder="Type here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-  <div class="info">Modifiers are STICKY. Toggle them once to hold, tap again to release. Typing and Pad actions respect active mods.</div>
+  <input id="inp" type="text" placeholder="Type here..." autocomplete="off">
+  <div class="info">Modifiers are sticky but auto-clear after 5s of inactivity.</div>
 </div></div>
 
 <script>
 const st=document.getElementById('status'), stTxt=document.getElementById('st-text'), inp=document.getElementById('inp');
-let ws,rt=0,ctrl=0,shift=0,alt=0,win=0;
+let ws,rt=0,ctrl=0,shift=0,alt=0,win=0,timer=null;
 
 function connect(){
   ws=new WebSocket('ws://'+location.host);
-  ws.onopen=()=>{st.classList.add('ok'); stTxt.innerText='Online'; rt=0;};
+  ws.onopen=()=>{st.classList.add('ok'); stTxt.innerText='Online'; rt=0; clr();};
   ws.onclose=()=>{st.classList.remove('ok'); stTxt.innerText='Offline'; setTimeout(connect,Math.min(1000*2**rt++,30000));};
 }
 connect();
 
-function s(m){if(ws?.readyState===1)ws.send(`${m}|${ctrl}|${shift}|${alt}|${win}`)}
+function rst(){
+  if(timer) clearTimeout(timer);
+  if(ctrl||shift||alt||win) timer=setTimeout(clr, 5000);
+}
+
+function s(m){if(ws?.readyState===1){ws.send(`${m}|${ctrl}|${shift}|${alt}|${win}`); rst();}}
 function c(x){s('cmd|'+x)}
 function sw(i){
   document.querySelectorAll('.tab').forEach((t,x)=>t.classList.toggle('a',x===i));
   document.querySelectorAll('.p').forEach((p,x)=>p.classList.toggle('a',x===i));
   if(i===2) setTimeout(()=>inp.focus(),100);
+  rst();
 }
 
 function tm(id){
   if(id==='ctrl')ctrl=1-ctrl; if(id==='alt')alt=1-alt; if(id==='shift')shift=1-shift; if(id==='win')win=1-win;
   document.getElementById(id).classList.toggle('on');
-  inp.focus();
+  inp.focus(); rst();
 }
 function clr(){
   ctrl=shift=alt=win=0;
   document.querySelectorAll('.mod').forEach(x=>x.classList.remove('on'));
+  if(ws?.readyState===1) ws.send(`syn|0|0|0|0|0|0|0|0`); // Direct sync clear
+  if(timer) clearTimeout(timer); timer=null;
 }
 function sk(vk){s(`key|${vk}`)}
 
 const pad=document.getElementById('pad');
-let lx=0,ly=0,ax=0,ay=0,as=0,mf=0,ts=0,tm_dist=0,ct=null,dr=0;
+let lx=0,ly=0,ax=0,ay=0,as=0,mf=0,ts=0,tm_dist=0;
 
 setInterval(()=>{
   if(ax||ay){s(`mv|${ax.toFixed(1)}|${ay.toFixed(1)}`);ax=ay=0}
@@ -144,13 +141,14 @@ pad.ontouchstart=e=>{
   e.preventDefault(); mf=Math.max(mf,e.touches.length);
   lx=e.touches[0].clientX; ly=e.touches[0].clientY;
   if(e.touches.length===1&&mf===1){ts=Date.now();tm_dist=0;}
+  rst();
 };
 pad.ontouchmove=e=>{
   e.preventDefault();
   const cx=e.touches[0].clientX,cy=e.touches[0].clientY,dx=cx-lx,dy=cy-ly;
   tm_dist+=Math.abs(dx)+Math.abs(dy);
   if(mf===1){ax+=dx;ay+=dy}else if(mf>=2&&tm_dist>5){as+=dy}
-  lx=cx;ly=cy;
+  lx=cx;ly=cy; rst();
 };
 pad.ontouchend=e=>{
   e.preventDefault(); const d=Date.now()-ts;
@@ -177,33 +175,26 @@ inp.oninput=e=>{
   } else if(!ign){ s('type|'+e.data); }
   inp.value=''; ign=0;
 };
-
-// Media
-const mediaList=document.getElementById('media-list'), mediaTitle=document.getElementById('media-title');
 async function fetchMedia(){
   if(ws?.readyState!==1)return;
   try {
     const res=await fetch('/media');
     const data=await res.json();
     if(data.length>0){
-      mediaTitle.style.display='block';
-      mediaList.innerHTML=data.map(p=>`
+      document.querySelector('.media-wrapper').innerHTML=data.map(p=>`
         <div class="media-card">
           <div class="mc-header">
-            <div style="flex:1;min-width:0">
-              <div class="mc-title">${p.title}</div>
-              <div class="mc-artist">${p.artist}</div>
-            </div>
+            <div style="flex:1;min-width:0"><div class="mc-title">${p.title}</div><div class="mc-artist">${p.artist}</div></div>
             <div class="mc-status ${p.status.toLowerCase()}">${p.status}</div>
           </div>
           <div class="mc-controls">
             <button class="mc-btn" onclick="c('prev|${p.id}')">⏮</button>
-            <button class="mc-btn" style="background:#1e293b" onclick="c('play|${p.id}')">${p.status==='Playing'?'⏸':'▶'}</button>
+            <button class="mc-btn" style="background:#1e293b" onclick="c('play|${p.id}')">${p.status==='Playing'?'Paused':'▶'}</button>
             <button class="mc-btn" onclick="c('next|${p.id}')">⏭</button>
           </div>
         </div>
       `).join('');
-    } else { mediaTitle.style.display='none'; mediaList.innerHTML=''; }
+    } else document.querySelector('.media-wrapper').innerHTML='';
   }catch(e){}
 }
 setInterval(fetchMedia,2500);
