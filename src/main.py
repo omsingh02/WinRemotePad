@@ -252,7 +252,7 @@ def handle(conn, addr):
         req = conn.recv(4096).decode('utf-8', errors='ignore')
         if not req: return
         request_line = req.split('\r\n')[0]
-        if f'token={TOKEN}' not in request_line:
+        if f'token={TOKEN}' not in request_line and not any(x in request_line for x in ('/favicon.ico', '/logo.png')):
             conn.sendall(b"HTTP/1.1 401 Unauthorized\r\n\r\nUnauthorized")
             return
             
@@ -303,6 +303,16 @@ def handle(conn, addr):
             if 'GET /media' in req:
                 payload = get_status()
                 conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\n\r\n" + payload)
+            elif 'GET /favicon.ico' in req:
+                try:
+                    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets', 'favicon.ico'), 'rb') as f:
+                        conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: image/x-icon\r\n\r\n" + f.read())
+                except: conn.sendall(b"HTTP/1.1 404 Not Found\r\n\r\n")
+            elif 'GET /logo.png' in req:
+                try:
+                    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets', 'logo.png'), 'rb') as f:
+                        conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: image/png\r\n\r\n" + f.read())
+                except: conn.sendall(b"HTTP/1.1 404 Not Found\r\n\r\n")
             else:
                 html = get_html()
                 conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nCache-Control: no-cache\r\n\r\n" + html)

@@ -1,4 +1,5 @@
 <div align="center">
+  <img src="assets/logo.png" width="144" alt="Telepad Logo" />
   <h1>🕹️ Telepad</h1>
   <p><strong>A beautifully simple, local remote control for your Windows & Linux PCs.</strong></p>
   
