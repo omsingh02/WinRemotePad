@@ -81,6 +81,7 @@
     </div>
   </div>
   <div class="topbar-right">
+    <span id="vol-val" style="font-size:12px;font-weight:600;color:#94a3b8;"></span>
     <div class="conn-pill">
       <div id="status"></div>
       <span id="st-text">Connecting</span>
@@ -153,8 +154,8 @@ let ws,rt=0,ctrl=0,shift=0,alt=0,win=0,timer=null;
 
 function connect(){
   ws=new WebSocket('ws://'+location.host);
-  ws.onopen=()=>{st.classList.add('ok'); stTxt.innerText='Online'; rt=0; clr();};
-  ws.onclose=()=>{st.classList.remove('ok'); stTxt.innerText='Offline'; setTimeout(connect,Math.min(1000*2**rt++,30000));};
+  ws.onopen=()=>{st.classList.add('ok'); stTxt.innerText='Online'; document.title='● Telepad'; rt=0; clr(); fetchMedia();};
+  ws.onclose=()=>{st.classList.remove('ok'); stTxt.innerText='Offline'; document.title='○ Telepad'; setTimeout(connect,Math.min(1000*2**rt++,30000));};
 }
 connect();
 
@@ -185,30 +186,70 @@ function clr(){
 function sk(vk){s(`key|${vk}`)}
 
 const pad=document.getElementById('pad');
-let lx=0,ly=0,ax=0,ay=0,as=0,mf=0,ts=0,tm_dist=0;
+let lx=0,ly=0,ax=0,ay=0,as=0,mf=0,ts=0,tm_dist=0,ct=null,dr=0,lpt=null,lastTapEnd=0,dcPending=false;
+
 setInterval(()=>{
   if(ax||ay){s(`mv|${ax.toFixed(1)}|${ay.toFixed(1)}`);ax=ay=0}
   if(as){s(`sc|${as.toFixed(1)}`);as=0}
 },16);
 
+function clrLpt(){ if(lpt){clearTimeout(lpt);lpt=null;} }
+
 pad.ontouchstart=e=>{
-  e.preventDefault(); mf=Math.max(mf,e.touches.length);
+  e.preventDefault();
+  const f=e.touches.length;
+  mf=Math.max(mf,f);
   lx=e.touches[0].clientX; ly=e.touches[0].clientY;
-  if(e.touches.length===1&&mf===1){ts=Date.now();tm_dist=0;}
+  if(f===1){
+    ts=Date.now(); tm_dist=0;
+    if(ct){
+      // Second touchstart while click pending
+      const gap=Date.now()-lastTapEnd;
+      if(gap<350){
+        // Quick second tap = double-click (not a drag)
+        clearTimeout(ct); ct=null; dcPending=true;
+      } else {
+        // Slow second tap = click-drag start
+        clearTimeout(ct); ct=null; s('md|1'); dr=1;
+      }
+    } else {
+      // Long-press right-click (500ms, no movement)
+      lpt=setTimeout(()=>{ if(tm_dist<8&&!dr){ s('rc'); dr=2; } lpt=null; },500);
+    }
+  } else {
+    clrLpt();
+  }
   rst();
 };
+
 pad.ontouchmove=e=>{
   e.preventDefault();
   const cx=e.touches[0].clientX,cy=e.touches[0].clientY,dx=cx-lx,dy=cy-ly;
   tm_dist+=Math.abs(dx)+Math.abs(dy);
-  if(mf===1){ax+=dx;ay+=dy}else if(mf>=2&&tm_dist>5){as+=dy}
+  if(tm_dist>8) clrLpt(); // Cancel long-press if moved
+  if(dr===1||mf===1){ax+=dx;ay+=dy}
+  else if(mf>=2&&tm_dist>5){as+=dy}
   lx=cx;ly=cy; rst();
 };
+
 pad.ontouchend=e=>{
-  e.preventDefault(); const d=Date.now()-ts;
+  e.preventDefault();
+  const d=Date.now()-ts;
+  clrLpt();
   if(!e.touches.length){
-    if(mf===1&&tm_dist<15&&d<250) s('cl');
-    else if(mf>=2&&tm_dist<15&&d<350) s('rc');
+    if(dr===1){ s('mu|1'); dr=0; mf=0; return; }  // End drag
+    if(dr===2){ dr=0; mf=0; return; }              // Long-press RC already sent
+    if(dcPending){
+      dcPending=false;
+      if(tm_dist<15&&d<300){ s('dc'); lastTapEnd=0; }
+      mf=0; return;
+    }
+    if(mf===1&&tm_dist<15&&d<300){
+      ct=setTimeout(()=>{ s('cl'); ct=null; },120);
+      lastTapEnd=Date.now();
+    } else if(mf>=2&&tm_dist<15&&d<350){
+      s('rc');
+    }
     mf=0;
   }
 };
@@ -244,13 +285,17 @@ async function fetchMedia(){
     const res=await fetch('/media');
     const data=await res.json();
     
-    // Update Battery
+    // Update Battery + Volume
     if(data.sys){
       document.getElementById('bat-val').innerText = data.sys.bat + '%';
       const fill = document.getElementById('bat-fill');
       fill.style.width = data.sys.bat + '%';
       fill.classList.toggle('low', data.sys.bat < 20);
       document.getElementById('bat-charging').style.display = data.sys.charging ? 'inline' : 'none';
+      const volEl = document.getElementById('vol-val');
+      if(volEl && data.sys.vol !== null && data.sys.vol !== undefined){
+        volEl.innerText = '🔊 ' + data.sys.vol + '%';
+      }
     }
 
     if(data.streams && data.streams.length>0){

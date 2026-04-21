@@ -229,6 +229,16 @@ def get_status():
                         "artist": parts[2].strip() or "Unknown Artist", 
                         "title": parts[3].strip() or parts[0].capitalize()
                     })
+    # Volume
+    if sys.platform != "win32":
+        try:
+            import re
+            vol_raw = run_as_user(['pactl', 'get-sink-volume', '@DEFAULT_SINK@'], return_output=True)
+            m = re.search(r'(\d+)%', vol_raw or '')
+            data["sys"]["vol"] = int(m.group(1)) if m else None
+        except: data["sys"]["vol"] = None
+    else:
+        data["sys"]["vol"] = None
     return json.dumps(data).encode('utf-8')
 
 def handle(conn, addr):
@@ -264,6 +274,7 @@ def handle(conn, addr):
                 elif t == 'md' and len(payload) >= 2: ctrl.mouse(2 if payload[1] == '1' else 8)
                 elif t == 'mu' and len(payload) >= 2: ctrl.mouse(4 if payload[1] == '1' else 16)
                 elif t == 'cl': ctrl.mouse(2); ctrl.mouse(4)
+                elif t == 'dc': ctrl.mouse(2); ctrl.mouse(4); ctrl.mouse(2); ctrl.mouse(4)
                 elif t == 'rc': ctrl.mouse(8); ctrl.mouse(16)
                 elif t == 'cmd' and len(payload) >= 2:
                     if payload[1] == 'lock': ctrl.lock()
