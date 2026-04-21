@@ -134,7 +134,7 @@ class LinuxInputController(InputController):
         try:
             # Safely delegate typing to Wayland typing tools for high complex unicode/emojis 
             # Note: Do not pass directly to shell to avoid injections
-            subprocess.run(['wtype', s], timeout=2)
+            subprocess.run(['wtype', s], timeout=2, stderr=subprocess.DEVNULL)
         except Exception as e:
             print(f"wtype error (is it installed?): {e}")
                 
@@ -197,7 +197,7 @@ def get_html():
 def get_media_status():
     if sys.platform == "win32": return b"[]"
     try:
-        res = subprocess.check_output(['playerctl', '-a', 'metadata', '--format', '{{playerName}}|{{status}}|{{artist}}|{{title}}'], timeout=1).decode('utf-8')
+        res = subprocess.check_output(['playerctl', '-a', 'metadata', '--format', '{{playerName}}|{{status}}|{{artist}}|{{title}}'], timeout=1, stderr=subprocess.DEVNULL).decode('utf-8')
         streams = []
         for line in res.strip().split('\n'):
             if not line: continue
@@ -247,7 +247,7 @@ def handle(conn, addr):
                     elif p[1] in ('play', 'next', 'prev'):
                         if len(p) >= 3 and p[2]:  # Targeted playerctl action
                             action = 'play-pause' if p[1] == 'play' else p[1]
-                            try: subprocess.run(['playerctl', '-p', p[2], action], timeout=1)
+                            try: subprocess.run(['playerctl', '-p', p[2], action], timeout=1, stderr=subprocess.DEVNULL)
                             except: pass
                         else: # Global action
                             ctrl.media(p[1])

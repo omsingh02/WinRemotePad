@@ -48,8 +48,8 @@ cd telepad
 pip install -r requirements-linux.txt 
 # or: sudo pacman -S python-evdev 
 
-# Run the server. Elevated permission is required to access /dev/uinput!
-sudo python src/main.py
+# Run the server. Elevated permission is required to access /dev/uinput! (-E preserves Wayland environment)
+sudo -E python src/main.py
 ```
 > **Note:** If you do not want to run `sudo`, ensure your user belongs to the `input` group and your system has a udev rule permitting `/dev/uinput` read/write access.
 
