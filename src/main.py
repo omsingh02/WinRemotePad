@@ -4,9 +4,9 @@ PORT = 5000
 SENS, SCROLL = 1.6, 2.2
 
 class InputController:
+    def sync_mods(self, ctrl, shift, alt, win): pass
     def mouse(self, flags, x=0, y=0, data=0): pass
     def key(self, vk): pass
-    def keycombo(self, vk, ctrl=0, shift=0, alt=0, win=0): pass
     def txt(self, s): pass
     def lock(self): pass
     def volume(self, direction): pass
@@ -22,22 +22,22 @@ class WindowsInputController(InputController):
             class MockU32:
                 def __getattr__(self, name): return lambda *args, **kwargs: None
             self.u32 = MockU32()
+        self._m = [0,0,0,0]
+
+    def sync_mods(self, ctrl, shift, alt, win):
+        if [ctrl, shift, alt, win] == self._m: return
+        pairs = [(0x11, ctrl), (0x10, shift), (0x12, alt), (0x5B, win)]
+        for i, (k, s) in enumerate(pairs):
+            if s != self._m[i]:
+                self.u32.keybd_event(k, 0, 0 if s else 2, 0)
+        self._m = [ctrl, shift, alt, win]
 
     def mouse(self, flags, x=0, y=0, data=0):
         self.u32.mouse_event(flags, x, y, data, 0)
 
     def key(self, vk):
-        self.u32.keybd_event(vk, 0, 1, 0)
-        self.u32.keybd_event(vk, 0, 3, 0)
-
-    def keycombo(self, vk, ctrl=0, shift=0, alt=0, win=0):
-        mods = [(0x11, ctrl), (0x10, shift), (0x12, alt), (0x5B, win)]
-        for k, p in mods:
-            if p: self.u32.keybd_event(k, 0, 0, 0)
         self.u32.keybd_event(vk, 0, 0, 0)
         self.u32.keybd_event(vk, 0, 2, 0)
-        for k, p in reversed(mods):
-            if p: self.u32.keybd_event(k, 0, 2, 0)
 
     def txt(self, s):
         for c in s:
@@ -100,6 +100,17 @@ class LinuxInputController(InputController):
         self.vk_map = {9: ecodes.KEY_TAB, 27: ecodes.KEY_ESC, 13: ecodes.KEY_ENTER, 8: ecodes.KEY_BACKSPACE, 32: ecodes.KEY_SPACE, 37: ecodes.KEY_LEFT, 38: ecodes.KEY_UP, 39: ecodes.KEY_RIGHT, 40: ecodes.KEY_DOWN, 91: ecodes.KEY_LEFTMETA}
         for i in range(26): self.vk_map[65 + i] = getattr(ecodes, f"KEY_{chr(65 + i)}")
         for i in range(10): self.vk_map[48 + i] = getattr(ecodes, f"KEY_{i}")
+        self._m = [0,0,0,0]
+
+    def sync_mods(self, ctrl, shift, alt, win):
+        if [ctrl, shift, alt, win] == self._m: return
+        e = self.ecodes
+        pairs = [(e.KEY_LEFTCTRL, ctrl), (e.KEY_LEFTSHIFT, shift), (e.KEY_LEFTALT, alt), (e.KEY_LEFTMETA, win)]
+        for i, (k, s) in enumerate(pairs):
+            if s != self._m[i]:
+                self.ui.write(e.EV_KEY, k, 1 if s else 0)
+        self.ui.syn()
+        self._m = [ctrl, shift, alt, win]
 
     def _send_key(self, key_ecode, hold=False):
         self.ui.write(self.ecodes.EV_KEY, key_ecode, 1) # Down
@@ -124,22 +135,6 @@ class LinuxInputController(InputController):
     def key(self, vk):
         if vk in self.vk_map: self._send_key(self.vk_map[vk])
 
-    def keycombo(self, vk, ctrl=0, shift=0, alt=0, win=0):
-        e = self.ecodes
-        if ctrl: self.ui.write(e.EV_KEY, e.KEY_LEFTCTRL, 1)
-        if shift: self.ui.write(e.EV_KEY, e.KEY_LEFTSHIFT, 1)
-        if alt: self.ui.write(e.EV_KEY, e.KEY_LEFTALT, 1)
-        if win: self.ui.write(e.EV_KEY, e.KEY_LEFTMETA, 1)
-        self.ui.syn()
-        
-        if vk in self.vk_map: self._send_key(self.vk_map[vk])
-            
-        if win: self.ui.write(e.EV_KEY, e.KEY_LEFTMETA, 0)
-        if alt: self.ui.write(e.EV_KEY, e.KEY_LEFTALT, 0)
-        if shift: self.ui.write(e.EV_KEY, e.KEY_LEFTSHIFT, 0)
-        if ctrl: self.ui.write(e.EV_KEY, e.KEY_LEFTCTRL, 0)
-        self.ui.syn()
-
     def txt(self, s):
         run_as_user(['wtype', s])
                 
@@ -155,7 +150,6 @@ class LinuxInputController(InputController):
         elif action == 'next': self._send_key(self.ecodes.KEY_NEXTSONG)
         elif action == 'prev': self._send_key(self.ecodes.KEY_PREVIOUSSONG)
 
-# Init Controller based on OS
 if sys.platform == "win32":
     ctrl = WindowsInputController()
 else:
@@ -226,58 +220,52 @@ def handle(conn, addr):
                 if ln.startswith('Sec-WebSocket-Key:'):
                     key = ln.split(': ', 1)[1].strip()
                     break
-            else:
-                return
+            else: return
             conn.sendall(f"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {ws_accept(key)}\r\n\r\n".encode())
             conn.settimeout(300)
             while True:
                 msg = ws_recv(conn)
                 if not msg: break
                 p = msg.split('|')
-                t = p[0]
-                if t == 'mv' and len(p) >= 3:
-                    try: ctrl.mouse(1, int(float(p[1]) * SENS), int(float(p[2]) * SENS))
+                if len(p) < 5: continue
+                # Modifiers are always the last 4 elements: ctrl, shift, alt, win
+                try:
+                    c_on, s_on, a_on, w_on = [int(x) for x in p[-4:]]
+                    ctrl.sync_mods(c_on, s_on, a_on, w_on)
+                    payload = p[:-4]
+                except: continue
+
+                t = payload[0]
+                if t == 'mv' and len(payload) >= 3:
+                    try: ctrl.mouse(1, int(float(payload[1]) * SENS), int(float(payload[2]) * SENS))
                     except: pass
-                elif t == 'sc' and len(p) >= 2:
-                    try: ctrl.mouse(0x800, 0, 0, int(float(p[1]) * SCROLL * 30))
+                elif t == 'sc' and len(payload) >= 2:
+                    try: ctrl.mouse(0x800, 0, 0, int(float(payload[1]) * SCROLL * 30))
                     except: pass
-                elif t == 'md' and len(p) >= 2: ctrl.mouse(2 if p[1] == '1' else 8)
-                elif t == 'mu' and len(p) >= 2: ctrl.mouse(4 if p[1] == '1' else 16)
+                elif t == 'md' and len(payload) >= 2: ctrl.mouse(2 if payload[1] == '1' else 8)
+                elif t == 'mu' and len(payload) >= 2: ctrl.mouse(4 if payload[1] == '1' else 16)
                 elif t == 'cl': ctrl.mouse(2); ctrl.mouse(4)
                 elif t == 'rc': ctrl.mouse(8); ctrl.mouse(16)
-                elif t == 'cmd' and len(p) >= 2:
-                    if p[1] == 'lock': ctrl.lock()
-                    elif p[1] in ('mute', 'voldn', 'volup'): ctrl.volume(p[1].replace('vol', ''))
-                    elif p[1] in ('play', 'next', 'prev'):
-                        if len(p) >= 3 and p[2]:  # Targeted playerctl action
-                            action = 'play-pause' if p[1] == 'play' else p[1]
-                            run_as_user(['playerctl', '-p', p[2], action], timeout=1)
-                        else: # Global action
-                            ctrl.media(p[1])
-                elif t == 'key' and len(p) >= 2:
-                    try:
-                        vk = int(p[1])
-                        # If a naked push of 91, don't demand combos
-                        if vk == 91 and len(p) == 2:
-                            ctrl.key(vk)
-                            continue
-                            
-                        ctrl_mod = int(p[2]) if len(p) > 2 else 0
-                        shift_mod = int(p[3]) if len(p) > 3 else 0
-                        alt_mod = int(p[4]) if len(p) > 4 else 0
-                        win_mod = int(p[5]) if len(p) > 5 else 0
-                        ctrl.keycombo(vk, ctrl_mod, shift_mod, alt_mod, win_mod)
+                elif t == 'cmd' and len(payload) >= 2:
+                    if payload[1] == 'lock': ctrl.lock()
+                    elif payload[1] in ('mute', 'voldn', 'volup'): ctrl.volume(payload[1].replace('vol', ''))
+                    elif payload[1] in ('play', 'next', 'prev'):
+                        if len(payload) >= 3 and payload[2]: # Targeted
+                            action = 'play-pause' if payload[1] == 'play' else payload[1]
+                            run_as_user(['playerctl', '-p', payload[2], action], timeout=1)
+                        else: ctrl.media(payload[1])
+                elif t == 'key' and len(payload) >= 2:
+                    try: ctrl.key(int(payload[1]))
                     except: pass
-                elif t == 'type' and len(p) >= 2: ctrl.txt(p[1])
+                elif t == 'type' and len(payload) >= 2: ctrl.txt(payload[1])
         else:
             if req.startswith('GET /media HTTP'):
                 payload = get_media_status()
-                conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-cache\r\nAccess-Control-Allow-Origin: *\r\n\r\n" + payload)
+                conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\n\r\n" + payload)
             else:
                 html = get_html()
                 conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nCache-Control: no-cache\r\n\r\n" + html)
-    except (socket.timeout, ConnectionResetError, BrokenPipeError, OSError):
-        pass
+    except (socket.timeout, ConnectionResetError, BrokenPipeError, OSError): pass
     finally:
         try: conn.close()
         except: pass
@@ -293,20 +281,15 @@ def get_ip():
 if __name__ == '__main__':
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    try:
-        srv.bind(('0.0.0.0', PORT))
+    try: srv.bind(('0.0.0.0', PORT))
     except OSError:
         print(f"Error: Port {PORT} in use")
         sys.exit(1)
     srv.listen(8)
-    ip = get_ip()
-    print(f"\n  Telepad Server Running")
-    print(f"  http://{ip}:{PORT}\n")
+    print(f"\n  Telepad Server Running\n  http://{get_ip()}:{PORT}\n")
     try:
         while True:
             conn, addr = srv.accept()
             threading.Thread(target=handle, args=(conn, addr), daemon=True).start()
-    except KeyboardInterrupt:
-        print("\nShutdown")
-    finally:
-        srv.close()
+    except KeyboardInterrupt: print("\nShutdown")
+    finally: srv.close()
