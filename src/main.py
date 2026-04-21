@@ -1,10 +1,10 @@
-import socket, struct, hashlib, base64, threading, sys, os, subprocess, json
+import socket, struct, hashlib, base64, threading, sys, os, subprocess, json, psutil, qrcode
 
 PORT = 5000
 SENS, SCROLL = 1.6, 2.2
 
 class InputController:
-    def sync_mods(self, ctrl, shift, alt, win): pass
+    def sync_mods(self, ctrl, shift, alt, win, force=False): pass
     def mouse(self, flags, x=0, y=0, data=0): pass
     def key(self, vk): pass
     def txt(self, s): pass
@@ -18,17 +18,16 @@ class WindowsInputController(InputController):
             import ctypes
             self.u32 = ctypes.windll.user32
         except AttributeError:
-            print("Warning: Windows Input requested but not on Windows. Mocking u32.")
             class MockU32:
                 def __getattr__(self, name): return lambda *args, **kwargs: None
             self.u32 = MockU32()
         self._m = [0,0,0,0]
 
-    def sync_mods(self, ctrl, shift, alt, win):
-        if [ctrl, shift, alt, win] == self._m: return
+    def sync_mods(self, ctrl, shift, alt, win, force=False):
+        if not force and [ctrl, shift, alt, win] == self._m: return
         pairs = [(0x11, ctrl), (0x10, shift), (0x12, alt), (0x5B, win)]
         for i, (k, s) in enumerate(pairs):
-            if s != self._m[i]:
+            if force or s != self._m[i]:
                 self.u32.keybd_event(k, 0, 0 if s else 2, 0)
         self._m = [ctrl, shift, alt, win]
 
@@ -94,14 +93,14 @@ class LinuxInputController(InputController):
                 print(f"Error accessing /dev/uinput: {e}\nEnsure you run as root or add user to 'input' group and specify udev rules.")
                 sys.exit(1)
         except ImportError:
-            print("Error: 'evdev' module is required on Linux. Install via 'pip install evdev' or 'sudo pacman -S python-evdev'.")
+            print("Error: 'evdev' module is required on Linux.")
             sys.exit(1)
             
         self.vk_map = {9: ecodes.KEY_TAB, 27: ecodes.KEY_ESC, 13: ecodes.KEY_ENTER, 8: ecodes.KEY_BACKSPACE, 32: ecodes.KEY_SPACE, 37: ecodes.KEY_LEFT, 38: ecodes.KEY_UP, 39: ecodes.KEY_RIGHT, 40: ecodes.KEY_DOWN, 91: ecodes.KEY_LEFTMETA}
         for i in range(26): self.vk_map[65 + i] = getattr(ecodes, f"KEY_{chr(65 + i)}")
         for i in range(10): self.vk_map[48 + i] = getattr(ecodes, f"KEY_{i}")
         self._m = [0,0,0,0]
-        self.sync_mods(0,0,0,0) # Force clear kernel state on start
+        self.sync_mods(0,0,0,0, force=True)
 
     def sync_mods(self, ctrl, shift, alt, win, force=False):
         if not force and [ctrl, shift, alt, win] == self._m: return
@@ -194,23 +193,31 @@ def get_html():
             return f.read()
     return b"<html><body>Error: index.html not found</body></html>"
 
-def get_media_status():
-    if sys.platform == "win32": return b"[]"
-    res = run_as_user(['playerctl', '-a', 'metadata', '--format', '{{playerName}}|{{status}}|{{artist}}|{{title}}'], return_output=True)
-    if not res: return b"[]"
+def get_status():
+    data = {"streams": [], "sys": {"bat": 0, "charging": False}}
+    # Battery
+    try:
+        bat = psutil.sensors_battery()
+        if bat:
+            data["sys"]["bat"] = int(bat.percent)
+            data["sys"]["charging"] = bat.power_plugged
+    except: pass
     
-    streams = []
-    for line in res.strip().split('\n'):
-        if not line: continue
-        parts = line.split('|', 3)
-        if len(parts) == 4:
-            streams.append({
-                "id": parts[0], 
-                "status": parts[1], 
-                "artist": parts[2].strip() or "Unknown Artist", 
-                "title": parts[3].strip() or parts[0].capitalize()
-            })
-    return json.dumps(streams).encode('utf-8')
+    # Media
+    if sys.platform != "win32":
+        res = run_as_user(['playerctl', '-a', 'metadata', '--format', '{{playerName}}|{{status}}|{{artist}}|{{title}}'], return_output=True)
+        if res:
+            for line in res.strip().split('\n'):
+                if not line: continue
+                parts = line.split('|', 3)
+                if len(parts) == 4:
+                    data["streams"].append({
+                        "id": parts[0], 
+                        "status": parts[1], 
+                        "artist": parts[2].strip() or "Unknown Artist", 
+                        "title": parts[3].strip() or parts[0].capitalize()
+                    })
+    return json.dumps(data).encode('utf-8')
 
 def handle(conn, addr):
     conn.settimeout(60)
@@ -229,7 +236,6 @@ def handle(conn, addr):
                 if not msg: break
                 p = msg.split('|')
                 if len(p) < 5: continue
-                # Modifiers are always the last 4 elements: ctrl, shift, alt, win
                 try:
                     c_on, s_on, a_on, w_on = [int(x) for x in p[-4:]]
                     ctrl.sync_mods(c_on, s_on, a_on, w_on)
@@ -251,7 +257,7 @@ def handle(conn, addr):
                     if payload[1] == 'lock': ctrl.lock()
                     elif payload[1] in ('mute', 'voldn', 'volup'): ctrl.volume(payload[1].replace('vol', ''))
                     elif payload[1] in ('play', 'next', 'prev'):
-                        if len(payload) >= 3 and payload[2]: # Targeted
+                        if len(payload) >= 3 and payload[2]:
                             action = 'play-pause' if payload[1] == 'play' else payload[1]
                             run_as_user(['playerctl', '-p', payload[2], action], timeout=1)
                         else: ctrl.media(payload[1])
@@ -261,7 +267,7 @@ def handle(conn, addr):
                 elif t == 'type' and len(payload) >= 2: ctrl.txt(payload[1])
         else:
             if req.startswith('GET /media HTTP'):
-                payload = get_media_status()
+                payload = get_status()
                 conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\n\r\n" + payload)
             else:
                 html = get_html()
@@ -269,7 +275,7 @@ def handle(conn, addr):
     except (socket.timeout, ConnectionResetError, BrokenPipeError, OSError): pass
     finally:
         try: 
-            ctrl.sync_mods(0,0,0,0, force=True) # Ensure clean state for next user
+            ctrl.sync_mods(0,0,0,0, force=True)
             conn.close()
         except: pass
 
@@ -289,7 +295,16 @@ if __name__ == '__main__':
         print(f"Error: Port {PORT} in use")
         sys.exit(1)
     srv.listen(8)
-    print(f"\n  Telepad Server Running\n  http://{get_ip()}:{PORT}\n")
+    ip = get_ip()
+    url = f"http://{ip}:{PORT}"
+    print(f"\n  Telepad Server Running")
+    print(f"  {url}\n")
+    
+    # QR Code
+    qr = qrcode.QRCode()
+    qr.add_data(url)
+    qr.print_ascii(invert=True)
+    
     try:
         while True:
             conn, addr = srv.accept()
