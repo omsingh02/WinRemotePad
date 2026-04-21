@@ -249,7 +249,10 @@ async function fetchMedia(){
           </div>
         </div>
       `).join('');
-    } else { mediaTitle.style.display='none'; mediaList.innerHTML=''; }
+    } else { 
+      mediaTitle.style.display='block';
+      mediaList.innerHTML='<div class="info" style="text-align:center; padding:20px; color:#475569;">Searching for active media players...</div>';
+    }
   }catch(e){}
 }
 function mc(action,id,btn){

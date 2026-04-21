@@ -266,7 +266,7 @@ def handle(conn, addr):
                     except: pass
                 elif t == 'type' and len(payload) >= 2: ctrl.txt(payload[1])
         else:
-            if req.startswith('GET /media HTTP'):
+            if 'GET /media' in req:
                 payload = get_status()
                 conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\n\r\n" + payload)
             else:
