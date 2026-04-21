@@ -6,70 +6,108 @@
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body { background:#0f172a; color:#f8fafc; font-family:'Inter', system-ui, sans-serif; overflow:hidden; touch-action:manipulation; user-select:none; height:100vh; height:100dvh; display:flex; flex-direction:column; }
   
-  .tabs { display:flex; height:56px; min-height:56px; background:#1e293b; border-bottom:1px solid #334155; padding: 0 8px; }
-  .tab { flex:1; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#94a3b8; font-weight:500; font-size:14px; transition:color 0.15s; border-bottom: 2px solid transparent; }
+  /* Tabs Navigation */
+  .tabs { display:flex; height:60px; min-height:60px; background:#1e293b; border-bottom:1px solid #334155; padding: 0 12px; z-index:100; }
+  .tab { flex:1; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#94a3b8; font-weight:600; font-size:14px; transition:color 0.15s, border-color 0.15s; border-bottom: 3px solid transparent; }
   .tab.a { color:#38bdf8; border-bottom-color:#38bdf8; }
   
+  /* Panels */
   .p { display:none; flex:1; overflow:hidden; }
   .p.a { display:flex; flex-direction:column; }
   
+  /* Grid & Buttons */
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:20px; overflow-y:auto; }
-  .btn { background:#1e293b; border:1px solid #334155; color:#f8fafc; padding:20px 12px; text-align:center; border-radius:16px; font-weight:500; font-size:14px; display:flex; flex-direction:column; align-items:center; gap:8px; transition:transform 0.1s, background 0.15s; }
+  .btn { background:#1e293b; border:1px solid #334155; color:#f8fafc; padding:20px 12px; text-align:center; border-radius:18px; font-weight:600; font-size:14px; display:flex; flex-direction:column; align-items:center; gap:10px; transition:transform 0.1s, background 0.15s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); }
   .btn:active { background:#334155; transform:scale(0.96); }
-  
-  .media-wrapper { padding: 0 20px 20px 20px; display:flex; flex-direction:column; gap:12px; overflow-y:auto; }
-  .media-card { background:#1e293b; border:1px solid #334155; padding:16px; border-radius:16px; display:flex; flex-direction:column; gap:12px; }
+  .btn svg { stroke:#94a3b8; }
+  .btn.accent-red svg { stroke:#f87171; }
+  .btn.accent-blue svg { stroke:#38bdf8; }
+
+  /* Media Section */
+  .media-wrapper { padding: 0 20px 20px 20px; display:flex; flex-direction:column; gap:12px; overflow-y:auto; flex:1; }
+  .media-card { background:rgba(30, 41, 59, 0.7); backdrop-filter: blur(8px); border: 1px solid rgba(51, 65, 85, 0.5); padding:16px; border-radius:18px; display:flex; flex-direction:column; gap:12px; }
   .mc-header { display:flex; justify-content:space-between; align-items:center; }
-  .mc-title { font-weight:600; font-size:15px; text-overflow:ellipsis; white-space:nowrap; overflow:hidden; }
-  .mc-artist { font-size:12px; color:#94a3b8; text-overflow:ellipsis; white-space:nowrap; overflow:hidden; }
-  .mc-status { font-size:11px; padding:2px 8px; border-radius:12px; background:#334155; }
+  .mc-title { font-weight:600; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mc-artist { font-size:12px; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mc-status { font-size:11px; padding:3px 10px; border-radius:12px; background:#334155; font-weight:700; text-transform:uppercase; }
   .mc-status.playing { background:#10b981; color:#064e3b; }
   .mc-controls { display:flex; justify-content:center; gap:20px; }
-  .mc-btn { background:#0f172a; border:none; color:#f8fafc; width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+  .mc-btn { background:rgba(15, 23, 42, 0.8); border:none; color:#f8fafc; width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; transition:transform 0.1s; }
+  .mc-btn:active { transform:scale(0.9); background:#334155; }
   
+  /* Trackpad */
   #pad-container { flex:1; padding:20px; display:flex; flex-direction:column; }
-  #pad { flex:1; background:#0b1120; border:1px solid #1e293b; border-radius:24px; touch-action:none; position:relative; }
-  .pad-hint { text-align:center; color:#64748b; font-size:12px; margin-top:16px; }
+  #pad { flex:1; background:#0b1120; border:2px solid #1e293b; border-radius:32px; box-shadow:inset 0 4px 16px rgba(0,0,0,0.6); touch-action:none; }
+  .pad-hint { text-align:center; color:#64748b; font-size:12px; margin-top:16px; line-height:1.4; opacity:0.8; }
   
-  #status-wrapper { position:fixed; top:64px; right:16px; display:flex; align-items:center; gap:6px; background:#1e293b; padding:6px 12px; border-radius:20px; border:1px solid #334155; z-index:99; font-size:12px; color:#94a3b8; }
-  #status { width:8px; height:8px; border-radius:50%; background:#f87171; }
-  #status.ok { background:#10b981; }
+  /* Connectivity Status Bar */
+  #status-wrapper { position:fixed; top:76px; right:20px; display:flex; align-items:center; gap:8px; background:rgba(30, 41, 59, 0.8); backdrop-filter:blur(8px); padding:8px 14px; border-radius:24px; border:1px solid rgba(51, 65, 85, 0.6); z-index:90; font-size:12px; color:#94a3b8; font-weight:500; }
+  #status { width:10px; height:10px; border-radius:50%; background:#f87171; box-shadow: 0 0 8px #ef4444; }
+  #status.ok { background:#10b981; box-shadow: 0 0 8px #10b981; }
   
-  #kb { padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:16px; }
+  #fs { position:fixed; top:76px; left:20px; padding:10px; background:rgba(30, 41, 59, 0.8); backdrop-filter:blur(8px); border:1px solid rgba(51, 65, 85, 0.6); border-radius:50%; z-index:90; display:flex; align-items:center; justify-content:center; }
+  
+  /* Keyboard / Mods */
+  #kb { padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:20px; }
   .mods { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
-  .mod { background:#1e293b; border:1px solid #334155; padding:16px 8px; text-align:center; border-radius:12px; font-size:13px; font-weight:600; color:#94a3b8; }
-  .mod.on { background:#38bdf8; color:#0f172a; border-color:#38bdf8; }
-  .mod-clear { grid-column: span 4; background:transparent; border:1px dashed #334155; padding:8px; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#64748b; border-radius:8px; text-align:center; }
+  .mod { background:#1e293b; border:1px solid #334155; padding:18px 8px; text-align:center; border-radius:14px; font-size:13px; font-weight:700; color:#64748b; transition:all 0.2s; }
+  .mod.on { background:#38bdf8; color:#0f172a; border-color:#38bdf8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }
+  .mod-clear { grid-column: span 4; background:transparent; border:1px dashed #334155; padding:10px; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#64748b; border-radius:10px; text-align:center; }
 
-  input { width:100%; padding:16px; background:#1e293b; border:1px solid #334155; color:#f8fafc; font-size:16px; border-radius:12px; }
+  input { width:100%; padding:18px; background:#1e293b; border:2px solid #334155; color:#f8fafc; font-size:16px; border-radius:14px; font-family:'Inter', sans-serif; transition:border-color 0.2s; }
   input:focus { outline:none; border-color:#38bdf8; }
-  .info { color:#64748b; font-size:11px; text-align:center; line-height:1.4; }
+  .info { color:#64748b; font-size:11px; text-align:center; line-height:1.6; margin-top:10px; }
+  .section-title { font-size:13px; font-weight:700; color:#475569; margin: 24px 20px 8px 20px; text-transform:uppercase; letter-spacing:1.5px; }
+
+  /* Custom Grid Utilities */
+  .grid-row { grid-template-columns: repeat(4, 1fr); padding: 0 20px; margin-top:20px; }
+  .grid-row .btn { padding: 16px 8px; }
 </style>
 </head><body>
 
 <div id="status-wrapper"><div id="status"></div><span id="st-text">Connecting</span></div>
+<div id="fs" onclick="document.documentElement.requestFullscreen?.()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg></div>
 
 <div class="tabs">
-  <div class="tab" onclick="sw(0)">Media</div>
-  <div class="tab a" onclick="sw(1)">Pad</div>
-  <div class="tab" onclick="sw(2)">Keys</div>
+  <div class="tab" onclick="sw(0)">CONTROLS</div>
+  <div class="tab a" onclick="sw(1)">TRACKPAD</div>
+  <div class="tab" onclick="sw(2)">KEYBOARD</div>
 </div>
 
-<!-- Media Panel -->
-<div class="p"><div style="display:flex; flex-direction:column; height:100%;">
+<!-- Controls Panel -->
+<div class="p"><div style="display:flex; flex-direction:column; height:100%; padding-bottom:30px;">
   <div class="grid">
-    <div class="btn" style="color:#f87171" onclick="c('lock')">Lock PC</div>
-    <div class="btn" onclick="c('mute')">Mute</div>
-    <div class="btn" onclick="c('voldn')">Vol Dn</div>
-    <div class="btn" onclick="c('volup')">Vol Up</div>
+    <div class="btn accent-red" onclick="c('lock')">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
+      Lock PC
+    </div>
+    <div class="btn" onclick="c('mute')">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+      Mute
+    </div>
+    <div class="btn" onclick="c('voldn')">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="15" y1="9" x2="15" y2="15"></line></svg>
+      Vol Down
+    </div>
+    <div class="btn" onclick="c('volup')">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"></path></svg>
+      Vol Up
+    </div>
+    <div class="btn accent-blue" onclick="sk(91)" style="flex-direction:row; justify-content:center; gap:12px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      Super
+    </div>
+    <div class="btn" onclick="sk(32)" style="flex-direction:row; justify-content:center;">Space</div>
   </div>
+  
+  <div class="section-title" id="media-title" style="display:none;">Active Streams</div>
   <div class="media-wrapper" id="media-list"></div>
 </div></div>
 
 <!-- Trackpad Panel -->
 <div class="p a"><div id="pad-container">
   <div id="pad"></div>
-  <div class="pad-hint">1-finger: move | Tap: L-click | 2-finger: R-click / Scroll</div>
+  <div class="pad-hint">1-finger: Move & Tap to Click<br>2-fingers: Right Click & Scroll</div>
 </div></div>
 
 <!-- Keyboard Panel -->
@@ -79,16 +117,25 @@
     <div class="mod" id="alt" onclick="tm('alt')">ALT</div>
     <div class="mod" id="shift" onclick="tm('shift')">SHIFT</div>
     <div class="mod" id="win" onclick="tm('win')">SUPER</div>
-    <div class="mod-clear" onclick="clr()">Clear Modifiers</div>
+    <div class="mod-clear" onclick="clr()">Reset Stickiness</div>
   </div>
+  
   <div class="mods">
-    <div class="btn" onclick="sk(9)">TAB</div><div class="btn" onclick="sk(27)">ESC</div><div class="btn" onclick="sk(13)">ENT</div><div class="btn" onclick="sk(8)">BKSP</div>
+    <div class="btn" onclick="sk(9)">TAB</div>
+    <div class="btn" onclick="sk(27)">ESC</div>
+    <div class="btn" onclick="sk(13)">ENT</div>
+    <div class="btn" onclick="sk(8)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 002-2V6a2 2 0 00-2-2z"></path><line x1="18" y1="9" x2="12" y2="15"></line><line x1="12" y1="9" x2="18" y2="15"></line></svg></div>
   </div>
+
   <div class="mods">
-    <div class="btn" onclick="sk(37)">←</div><div class="btn" onclick="sk(38)">↑</div><div class="btn" onclick="sk(40)">↓</div><div class="btn" onclick="sk(39)">→</div>
+    <div class="btn" onclick="sk(37)">←</div>
+    <div class="btn" onclick="sk(38)">↑</div>
+    <div class="btn" onclick="sk(40)">↓</div>
+    <div class="btn" onclick="sk(39)">→</div>
   </div>
-  <input id="inp" type="text" placeholder="Type here..." autocomplete="off">
-  <div class="info">Modifiers are sticky but auto-clear after 5s of inactivity.</div>
+  
+  <input id="inp" type="text" placeholder="Start typing here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <div class="info">Modifiers are sticky. They auto-clear after 5s of inactivity.<br>Special characters, emojis, and combos are natively supported.</div>
 </div></div>
 
 <script>
@@ -112,7 +159,7 @@ function c(x){s('cmd|'+x)}
 function sw(i){
   document.querySelectorAll('.tab').forEach((t,x)=>t.classList.toggle('a',x===i));
   document.querySelectorAll('.p').forEach((p,x)=>p.classList.toggle('a',x===i));
-  if(i===2) setTimeout(()=>inp.focus(),100);
+  if(i===2) setTimeout(()=>inp.focus(),150);
   rst();
 }
 
@@ -124,7 +171,7 @@ function tm(id){
 function clr(){
   ctrl=shift=alt=win=0;
   document.querySelectorAll('.mod').forEach(x=>x.classList.remove('on'));
-  if(ws?.readyState===1) ws.send(`syn|0|0|0|0|0|0|0|0`); // Direct sync clear
+  if(ws?.readyState===1) ws.send(`syn|0|0|0|0|0|0|0|0`); // Dummy packet for force sync
   if(timer) clearTimeout(timer); timer=null;
 }
 function sk(vk){s(`key|${vk}`)}
@@ -175,26 +222,40 @@ inp.oninput=e=>{
   } else if(!ign){ s('type|'+e.data); }
   inp.value=''; ign=0;
 };
+
+// Media Polling
+const mediaList=document.getElementById('media-list'), mediaTitle=document.getElementById('media-title');
+const svgs = {
+  prev: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line></svg>',
+  play: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>',
+  pause: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>',
+  next: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>'
+};
+
 async function fetchMedia(){
   if(ws?.readyState!==1)return;
   try {
     const res=await fetch('/media');
     const data=await res.json();
     if(data.length>0){
-      document.querySelector('.media-wrapper').innerHTML=data.map(p=>`
+      mediaTitle.style.display='block';
+      mediaList.innerHTML=data.map(p=>`
         <div class="media-card">
           <div class="mc-header">
-            <div style="flex:1;min-width:0"><div class="mc-title">${p.title}</div><div class="mc-artist">${p.artist}</div></div>
+            <div style="flex:1;min-width:0">
+              <div class="mc-title" title="${p.title}">${p.title}</div>
+              <div class="mc-artist" title="${p.artist}">${p.artist} · ${p.id.split('.')[0]}</div>
+            </div>
             <div class="mc-status ${p.status.toLowerCase()}">${p.status}</div>
           </div>
           <div class="mc-controls">
-            <button class="mc-btn" onclick="c('prev|${p.id}')">⏮</button>
-            <button class="mc-btn" style="background:#1e293b" onclick="c('play|${p.id}')">${p.status==='Playing'?'Paused':'▶'}</button>
-            <button class="mc-btn" onclick="c('next|${p.id}')">⏭</button>
+            <button class="mc-btn" onclick="c('prev|${p.id}')">${svgs.prev}</button>
+            <button class="mc-btn" style="background:#1e293b" onclick="c('play|${p.id}')">${p.status==='Playing'?svgs.pause:svgs.play}</button>
+            <button class="mc-btn" onclick="c('next|${p.id}')">${svgs.next}</button>
           </div>
         </div>
       `).join('');
-    } else document.querySelector('.media-wrapper').innerHTML='';
+    } else { mediaTitle.style.display='none'; mediaList.innerHTML=''; }
   }catch(e){}
 }
 setInterval(fetchMedia,2500);
